@@ -56,6 +56,8 @@ export default function MultiOpsCalendar() {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
 
   // Check if user is logged in
   useEffect(() => {
@@ -139,17 +141,33 @@ export default function MultiOpsCalendar() {
     return operation && operation.user === currentUser.email;
   };
   
-  const deleteEvent = async (id, e) => { 
-    e.stopPropagation(); 
-    const eventToDelete = events.find(ev => ev.id === id);
-    if (eventToDelete && canEditEvent(eventToDelete)) {
+  // Open delete confirmation modal
+  const openDeleteModal = (event, e) => {
+    e.stopPropagation();
+    if (canEditEvent(event)) {
+      setEventToDelete(event);
+      setDeleteModalOpen(true);
+    }
+  };
+
+  // Delete event after confirmation
+  const confirmDelete = async () => {
+    if (eventToDelete) {
       try {
-        await deleteDoc(doc(db, "events", id));
+        await deleteDoc(doc(db, "events", eventToDelete.id));
+        setDeleteModalOpen(false);
+        setEventToDelete(null);
       } catch (error) {
         console.error("Error deleting event:", error);
         alert("Error deleting event. Please try again.");
       }
     }
+  };
+
+  // Cancel delete
+  const cancelDelete = () => {
+    setDeleteModalOpen(false);
+    setEventToDelete(null);
   };
 
   // Add new event
@@ -225,67 +243,77 @@ export default function MultiOpsCalendar() {
   };
 
   // Show login screen if not authenticated
-  if (!currentUser) {
-    return (
-      <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#f8fafc,#e0f2fe,#e8eaf6)',fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <div style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(10px)',borderRadius:'16px',boxShadow:'0 25px 50px rgba(0,0,0,0.1)',border:'1px solid rgba(255,255,255,0.2)',padding:'32px',width:'100%',maxWidth:'400px'}}>
-          <div style={{textAlign:'center',marginBottom:'32px'}}>
-            <div style={{display:'inline-flex',alignItems:'center',gap:'12px',marginBottom:'16px'}}>
-              <div style={{width:'48px',height:'48px',background:'linear-gradient(135deg,#3B82F6,#8B5CF6)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'24px',boxShadow:'0 10px 25px rgba(0,0,0,0.1)'}}>📅</div>
-              <h1 style={{fontSize:'32px',fontWeight:'bold',background:'linear-gradient(135deg,#1f2937,#4b5563)',backgroundClip:'text',WebkitBackgroundClip:'text',color:'transparent',margin:0}}>Multi-Operation Calendar</h1>
+if (!currentUser) {
+  return (
+    <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#f8fafc,#e0f2fe,#e8eaf6)',fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'}}>
+      <div style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(10px)',borderRadius:'16px',boxShadow:'0 25px 50px rgba(0,0,0,0.1)',border:'1px solid rgba(255,255,255,0.2)',padding:'40px',width:'100%',maxWidth:'400px'}}>
+        <div style={{textAlign:'center',marginBottom:'32px'}}>
+          {/* Logo Section */}
+          <div style={{display: 'flex', justifyContent: 'center', marginBottom: '24px'}}>
+            <div style={{
+              height: '80px', 
+              width: '80px',
+              background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+              borderRadius: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '36px',
+              color: 'white',
+              boxShadow: '0 6px 16px rgba(0,0,0,0.15)'
+            }}>
+              📅
             </div>
-            <p style={{color:'#6b7280',fontSize:'16px',margin:0}}>Please login to continue</p>
           </div>
-
-          <form onSubmit={handleLogin}>
-            <div style={{marginBottom:'20px'}}>
-              <label style={{display:'block',marginBottom:'8px',fontWeight:'500',color:'#374151'}}>Email</label>
-              <input 
-                type="email" 
-                value={loginEmail} 
-                onChange={e => setLoginEmail(e.target.value)} 
-                style={{width:'100%',padding:'12px 16px',borderRadius:'8px',border:'1px solid #d1d5db', fontSize: '16px'}} 
-                required 
-              />
-            </div>
-            
-            <div style={{marginBottom:'24px'}}>
-              <label style={{display:'block',marginBottom:'8px',fontWeight:'500',color:'#374151'}}>Password</label>
-              <input 
-                type="password" 
-                value={loginPassword} 
-                onChange={e => setLoginPassword(e.target.value)} 
-                style={{width:'100%',padding:'12px 16px',borderRadius:'8px',border:'1px solid #d1d5db', fontSize: '16px'}} 
-                required 
-              />
-            </div>
-            
-            {loginError && (
-              <div style={{color: '#EF4444', marginBottom: '16px', textAlign: 'center'}}>
-                {loginError}
-              </div>
-            )}
-            
-            <button 
-              type="submit" 
-              style={{width:'100%',padding:'12px 16px',borderRadius:'8px',background:'#3B82F6',color:'white',border:'none', fontSize: '16px', fontWeight: '500', cursor: 'pointer'}}
-            >
-              Login
-            </button>
-          </form>
           
-          <div style={{marginTop: '24px', padding: '16px', background: '#F3F4F6', borderRadius: '8px'}}>
-            <p style={{margin: '0 0 12px 0', fontSize: '14px', color: '#4B5563'}}>Demo credentials:</p>
-            <div style={{fontSize: '12px', color: '#6B7280'}}>
-              <div>Admin: admin@example.com / admin123</div>
-              <div>Vels: vels@example.com / vels123</div>
-              <div>Bharath: bharath@example.com / bharath123</div>
-            </div>
+          <div style={{marginBottom: '16px'}}>
+            <h1 style={{fontSize:'28px',fontWeight:'bold',background:'linear-gradient(135deg,#1f2937,#4b5563)',backgroundClip:'text',WebkitBackgroundClip:'text',color:'transparent',margin:0, lineHeight: '1.3'}}>
+              Multi-Operation<br />Calendar
+            </h1>
           </div>
+          <p style={{color:'#6b7280',fontSize:'16px',margin:0}}>Please login to continue</p>
         </div>
+
+        <form onSubmit={handleLogin}>
+          <div style={{marginBottom:'20px'}}>
+            <label style={{display:'block',marginBottom:'10px',fontWeight:'500',color:'#374151', fontSize: '15px'}}>Email</label>
+            <input 
+              type="email" 
+              value={loginEmail} 
+              onChange={e => setLoginEmail(e.target.value)} 
+              style={{width:'100%',padding:'14px 16px',borderRadius:'10px',border:'1px solid #d1d5db', fontSize: '16px', boxSizing: 'border-box'}} 
+              required 
+            />
+          </div>
+          
+          <div style={{marginBottom:'28px'}}>
+            <label style={{display:'block',marginBottom:'10px',fontWeight:'500',color:'#374151', fontSize: '15px'}}>Password</label>
+            <input 
+              type="password" 
+              value={loginPassword} 
+              onChange={e => setLoginPassword(e.target.value)} 
+              style={{width:'100%',padding:'14px 16px',borderRadius:'10px',border:'1px solid #d1d5db', fontSize: '16px', boxSizing: 'border-box'}} 
+              required 
+            />
+          </div>
+          
+          {loginError && (
+            <div style={{color: '#EF4444', marginBottom: '18px', textAlign: 'center', padding: '12px', backgroundColor: '#FEF2F2', borderRadius: '8px', fontSize: '14px'}}>
+              {loginError}
+            </div>
+          )}
+          
+          <button 
+            type="submit" 
+            style={{width:'100%',padding:'14px 16px',borderRadius:'10px',background:'#3B82F6',color:'white',border:'none', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'}}
+          >
+            Login
+          </button>
+        </form>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#f8fafc,#e0f2fe,#e8eaf6)',fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif'}}>
@@ -369,7 +397,7 @@ export default function MultiOpsCalendar() {
                       const op = operationsList.find(o=>o.name===ev.op);
                       const canEdit = canEditEvent(ev);
                       return (
-                        <div key={ev.id} onClick={(e) => canEdit && deleteEvent(ev.id, e)} style={{
+                        <div key={ev.id} onClick={(e) => openDeleteModal(ev, e)} style={{
                           background: op.bgColor,
                           borderRadius:'8px',
                           padding:'6px 12px',
@@ -403,7 +431,7 @@ export default function MultiOpsCalendar() {
           <div style={{display:'inline-flex',alignItems:'center',gap:'24px',padding:'12px 24px',background:'rgba(255,255,255,0.8)',backdropFilter:'blur(10px)',borderRadius:'50px',boxShadow:'0 10px 25px rgba(0,0,0,0.1)',border:'1px solid rgba(255,255,255,0.2)'}}>
             <div style={{fontSize:'14px',color:'#6b7280'}}><span style={{fontWeight:'bold',color:'#1f2937'}}>{events.length}</span> Total Events</div>
             <div style={{width:'4px',height:'16px',background:'#d1d5db',borderRadius:'2px'}}/>
-            <div style={{fontSize:'14px',color:'#6b7280'}}><span style={{fontWeight:'bold',color:'#1f2937'}}>{selectedOps.length}</span> Active Operations</div>
+            <div style={{fontSize:'14px',color:'#6b7280'}}><span style={{fontWeight:'bold',color:'1f2937'}}>{selectedOps.length}</span> Active Operations</div>
             <div style={{width:'4px',height:'16px',background:'#d1d5db',borderRadius:'2px'}}/>
             <div style={{fontSize:'14px',color:'#6b7280'}}>User: <span style={{fontWeight:'bold',color:'#1f2937'}}>
               {currentUser.email}
@@ -412,7 +440,7 @@ export default function MultiOpsCalendar() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Add Event Modal */}
       {modalOpen && (
         <div style={{
           position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.5)',
@@ -491,6 +519,44 @@ export default function MultiOpsCalendar() {
                   Save Event
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div style={{
+          position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.5)',
+          display:'flex',alignItems:'center',justifyContent:'center',zIndex:1001
+        }}>
+          <div style={{background:'white',borderRadius:'16px',padding:'32px',minWidth:'400px',maxWidth:'500px',position:'relative'}}>
+            <h2 style={{marginTop:0, color: '#EF4444'}}>Confirm Delete</h2>
+            
+            <div style={{marginBottom: '24px'}}>
+              <p style={{fontSize: '16px', marginBottom: '8px'}}>Are you sure you want to delete this event?</p>
+              <div style={{background: '#F3F4F6', padding: '12px', borderRadius: '8px'}}>
+                <div style={{fontWeight: 'bold', fontSize: '18px', marginBottom: '4px'}}>{eventToDelete?.title}</div>
+                <div style={{fontSize: '14px', color: '#6B7280'}}>
+                  <div>Operation: {eventToDelete?.op}</div>
+                  <div>Date: {eventToDelete?.date}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{display:'flex',justifyContent:'flex-end',gap:'12px'}}>
+              <button 
+                onClick={cancelDelete} 
+                style={{padding:'10px 18px',borderRadius:'8px',border:'1px solid #d1d5db', background: 'white', cursor: 'pointer'}}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete} 
+                style={{padding:'10px 18px',borderRadius:'8px',background:'#EF4444',color:'white',border:'none', cursor: 'pointer'}}
+              >
+                Delete Event
+              </button>
             </div>
           </div>
         </div>
