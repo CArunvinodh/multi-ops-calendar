@@ -19,12 +19,12 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const operationsList = [
-  { name: "Vels University", color: "#3B82F6", bgColor: "linear-gradient(135deg, #3B82F6, #1D4ED8)", user: "vels@example.com" },
-  { name: "Bharath University", color: "#10B981", bgColor: "linear-gradient(135deg, #10B981, #047857)", user: "bharath@example.com" },
-  { name: "Jamal Mohammad College", color: "#F59E0B", bgColor: "linear-gradient(135deg, #F59E0B, #D97706)", user: "jamal@example.com" },
-  { name: "Crescent University", color: "#8B5CF6", bgColor: "linear-gradient(135deg, #8B5CF6, #7C3AED)", user: "crescent@example.com" },
-  { name: "Bishop Herber College", color: "#EC4899", bgColor: "linear-gradient(135deg, #EC4899, #DB2777)", user: "bishop@example.com" },
-  { name: "Malla Reddy University", color: "#EF4444", bgColor: "linear-gradient(135deg, #EF4444, #DC2626)", user: "malla@example.com" },
+  { name: "Vels University", color: "#3B82F6", bgColor: "linear-gradient(135deg, #3B82F6, #1D4ED8)", user: "velsoperationmhc@gmail.com" },
+  { name: "Bharath University", color: "#10B981", bgColor: "linear-gradient(135deg, #10B981, #047857)", user: "bharathoperationmhc@gmail.com" },
+  { name: "Jamal Mohammad College", color: "#F59E0B", bgColor: "linear-gradient(135deg, #F59E0B, #D97706)", user: "jamaloperationmhc@gmail.com" },
+  { name: "Crescent University", color: "#8B5CF6", bgColor: "linear-gradient(135deg, #8B5CF6, #7C3AED)", user: "crescentoperationmhc@gmail.com" },
+  { name: "Bishop Herber College", color: "#EC4899", bgColor: "linear-gradient(135deg, #EC4899, #DB2777)", user: "bishopoperationmhc@gmail.com" },
+  { name: "Malla Reddy University", color: "#EF4444", bgColor: "linear-gradient(135deg, #EF4444, #DC2626)", user: "mallaoperationmhc@gmail.com" },
 ];
 
 // Utility functions
