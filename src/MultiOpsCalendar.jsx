@@ -58,6 +58,8 @@ export default function MultiOpsCalendar() {
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [eventToView, setEventToView] = useState(null);
 
   // Check if user is logged in
   useEffect(() => {
@@ -74,6 +76,20 @@ export default function MultiOpsCalendar() {
 
     return () => unsubscribe();
   }, []);
+
+  // Handle Escape key to close modals
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        if (modalOpen) setModalOpen(false);
+        if (deleteModalOpen) setDeleteModalOpen(false);
+        if (viewModalOpen) setViewModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [modalOpen, deleteModalOpen, viewModalOpen]);
 
   // Load events from Firebase
   const loadEvents = () => {
@@ -148,6 +164,19 @@ export default function MultiOpsCalendar() {
       setEventToDelete(event);
       setDeleteModalOpen(true);
     }
+  };
+
+  // Open view modal for other users
+  const openViewModal = (event, e) => {
+    e.stopPropagation();
+    setEventToView(event);
+    setViewModalOpen(true);
+  };
+
+  // Close view modal
+  const closeViewModal = () => {
+    setViewModalOpen(false);
+    setEventToView(null);
   };
 
   // Delete event after confirmation
@@ -397,23 +426,29 @@ if (!currentUser) {
                       const op = operationsList.find(o=>o.name===ev.op);
                       const canEdit = canEditEvent(ev);
                       return (
-                        <div key={ev.id} onClick={(e) => openDeleteModal(ev, e)} style={{
-                          background: op.bgColor,
-                          borderRadius:'8px',
-                          padding:'6px 12px',
-                          color:'white',
-                          fontSize:'12px',
-                          fontWeight:'500',
-                          cursor: canEdit ? 'pointer' : 'default',
-                          display:'flex',
-                          alignItems:'center',
-                          justifyContent:'space-between',
-                          opacity: canEdit ? 1 : 0.8
-                        }}>
-                          <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingRight:'8px'}}>{ev.title}</span>
-                          {canEdit && <span style={{fontSize:'10px',opacity:0.8}}>🗑️</span>}
+                        <div 
+                          key={ev.id} 
+                          onClick={(e) => canEdit ? openDeleteModal(ev, e) : openViewModal(ev, e)} 
+                          style={{
+                            background: op.bgColor,
+                            borderRadius:'8px',
+                            padding:'6px 12px',
+                            color:'white',
+                            fontSize:'12px',
+                            fontWeight:'500',
+                            cursor: 'pointer',
+                            display:'flex',
+                            alignItems:'center',
+                            justifyContent:'space-between',
+                            wordWrap: 'break-word',
+                            whiteSpace: 'normal',
+                            minHeight: '32px'
+                          }}
+                        >
+                          <span style={{overflow:'hidden',textOverflow:'ellipsis',paddingRight:'8px', flex: 1}}>{ev.title}</span>
+                          {canEdit && <span style={{fontSize:'10px',opacity:0.8, flexShrink: 0}}>🗑️</span>}
                           {!canEdit && currentUser.email === "admin@example.com" && (
-                            <span style={{fontSize:'10px',opacity:0.8}}>👁️</span>
+                            <span style={{fontSize:'10px',opacity:0.8, flexShrink: 0}}>👁️</span>
                           )}
                         </div>
                       )
@@ -431,7 +466,7 @@ if (!currentUser) {
           <div style={{display:'inline-flex',alignItems:'center',gap:'24px',padding:'12px 24px',background:'rgba(255,255,255,0.8)',backdropFilter:'blur(10px)',borderRadius:'50px',boxShadow:'0 10px 25px rgba(0,0,0,0.1)',border:'1px solid rgba(255,255,255,0.2)'}}>
             <div style={{fontSize:'14px',color:'#6b7280'}}><span style={{fontWeight:'bold',color:'#1f2937'}}>{events.length}</span> Total Events</div>
             <div style={{width:'4px',height:'16px',background:'#d1d5db',borderRadius:'2px'}}/>
-            <div style={{fontSize:'14px',color:'#6b7280'}}><span style={{fontWeight:'bold',color:'1f2937'}}>{selectedOps.length}</span> Active Operations</div>
+            <div style={{fontSize:'14px',color:'#6b7280'}}><span style={{fontWeight:'bold',color:'#1f2937'}}>{selectedOps.length}</span> Active Operations</div>
             <div style={{width:'4px',height:'16px',background:'#d1d5db',borderRadius:'2px'}}/>
             <div style={{fontSize:'14px',color:'#6b7280'}}>User: <span style={{fontWeight:'bold',color:'#1f2937'}}>
               {currentUser.email}
@@ -442,11 +477,17 @@ if (!currentUser) {
 
       {/* Add Event Modal */}
       {modalOpen && (
-        <div style={{
-          position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.5)',
-          display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000
-        }}>
-          <div style={{background:'white',borderRadius:'16px',padding:'32px',minWidth:'400px',maxWidth:'500px',position:'relative', maxHeight: '80vh', overflowY: 'auto'}}>
+        <div 
+          style={{
+            position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.5)',
+            display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000
+          }}
+          onClick={() => setModalOpen(false)}
+        >
+          <div 
+            style={{background:'white',borderRadius:'16px',padding:'32px',minWidth:'400px',maxWidth:'500px',position:'relative', maxHeight: '80vh', overflowY: 'auto'}}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2 style={{marginTop:0}}>Add New Event</h2>
             <p style={{marginBottom:'8px', fontWeight: 'bold', color: '#374151'}}>{format(newEventDate,'MMMM dd, yyyy')}</p>
             
@@ -526,11 +567,17 @@ if (!currentUser) {
 
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
-        <div style={{
-          position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.5)',
-          display:'flex',alignItems:'center',justifyContent:'center',zIndex:1001
-        }}>
-          <div style={{background:'white',borderRadius:'16px',padding:'32px',minWidth:'400px',maxWidth:'500px',position:'relative'}}>
+        <div 
+          style={{
+            position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.5)',
+            display:'flex',alignItems:'center',justifyContent:'center',zIndex:1001
+          }}
+          onClick={() => setDeleteModalOpen(false)}
+        >
+          <div 
+            style={{background:'white',borderRadius:'16px',padding:'32px',minWidth:'400px',maxWidth:'500px',position:'relative'}}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2 style={{marginTop:0, color: '#EF4444'}}>Confirm Delete</h2>
             
             <div style={{marginBottom: '24px'}}>
@@ -556,6 +603,48 @@ if (!currentUser) {
                 style={{padding:'10px 18px',borderRadius:'8px',background:'#EF4444',color:'white',border:'none', cursor: 'pointer'}}
               >
                 Delete Event
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Event Modal for Other Users */}
+      {viewModalOpen && eventToView && (
+        <div 
+          style={{
+            position:'fixed',top:0,left:0,width:'100%',height:'100%',background:'rgba(0,0,0,0.5)',
+            display:'flex',alignItems:'center',justifyContent:'center',zIndex:1002
+          }}
+          onClick={closeViewModal}
+        >
+          <div 
+            style={{background:'white',borderRadius:'16px',padding:'32px',minWidth:'400px',maxWidth:'500px',position:'relative'}}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{marginTop:0}}>Event Details</h2>
+            
+            <div style={{marginBottom: '24px'}}>
+              <div style={{background: '#F3F4F6', padding: '16px', borderRadius: '8px'}}>
+                <div style={{fontWeight: 'bold', fontSize: '18px', marginBottom: '8px', color: '#1F2937'}}>{eventToView.title}</div>
+                <div style={{fontSize: '14px', color: '#6B7280', marginBottom: '4px'}}>
+                  <strong>Operation:</strong> {eventToView.op}
+                </div>
+                <div style={{fontSize: '14px', color: '#6B7280', marginBottom: '4px'}}>
+                  <strong>Date:</strong> {eventToView.date}
+                </div>
+                <div style={{fontSize: '14px', color: '#6B7280'}}>
+                  <strong>Created by:</strong> {eventToView.user}
+                </div>
+              </div>
+            </div>
+            
+            <div style={{display:'flex',justifyContent:'flex-end'}}>
+              <button 
+                onClick={closeViewModal} 
+                style={{padding:'10px 18px',borderRadius:'8px',background:'#3B82F6',color:'white',border:'none', cursor: 'pointer'}}
+              >
+                Close
               </button>
             </div>
           </div>
