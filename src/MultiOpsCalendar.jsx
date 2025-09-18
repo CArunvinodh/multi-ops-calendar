@@ -60,6 +60,8 @@ export default function MultiOpsCalendar() {
   const [eventToDelete, setEventToDelete] = useState(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [eventToView, setEventToView] = useState(null);
+  const [viewOnlyMode, setViewOnlyMode] = useState(false);
+  const [eventsUnsubscribe, setEventsUnsubscribe] = useState(null);
 
   // Check if user is logged in
   useEffect(() => {
@@ -67,6 +69,7 @@ export default function MultiOpsCalendar() {
       if (user) {
         setCurrentUser(user);
         loadEvents();
+        setViewOnlyMode(false);
       } else {
         setCurrentUser(null);
         setEvents([]);
@@ -92,18 +95,29 @@ export default function MultiOpsCalendar() {
   }, [modalOpen, deleteModalOpen, viewModalOpen]);
 
   // Load events from Firebase
-  const loadEvents = () => {
-    const eventsRef = collection(db, "events");
-    const unsubscribe = onSnapshot(eventsRef, (snapshot) => {
-      const eventsData = [];
-      snapshot.forEach((doc) => {
-        eventsData.push({ id: doc.id, ...doc.data() });
-      });
-      setEvents(eventsData);
+const loadEvents = () => {
+  const eventsRef = collection(db, "events");
+  const unsubscribe = onSnapshot(eventsRef, (snapshot) => {
+    const eventsData = [];
+    snapshot.forEach((doc) => {
+      eventsData.push({ id: doc.id, ...doc.data() });
     });
-
-    return unsubscribe;
+    setEvents(eventsData);
+  });
+  
+  // Store the unsubscribe function
+  setEventsUnsubscribe(() => unsubscribe);
+  
+  return unsubscribe;
+};
+// Clean up event listener when component unmounts or view mode changes
+useEffect(() => {
+  return () => {
+    if (eventsUnsubscribe) {
+      eventsUnsubscribe();
+    }
   };
+}, [eventsUnsubscribe, viewOnlyMode]);
 
   // Login function
   const handleLogin = async (e) => {
@@ -120,9 +134,33 @@ export default function MultiOpsCalendar() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setViewOnlyMode(false);
     } catch (error) {
       console.error("Error signing out:", error);
     }
+  };
+  // Exit view-only mode and return to login page
+  const exitViewMode = () => {
+    setViewOnlyMode(false);
+    setCurrentUser(null);
+    setEvents([]);
+    
+    // Clean up the event listener
+    if (eventsUnsubscribe) {
+      eventsUnsubscribe();
+      setEventsUnsubscribe(null);
+    }
+  };
+
+  // Enter view-only mode
+  const enterViewOnlyMode = () => {
+    setViewOnlyMode(true);
+    setCurrentUser({ email: "viewer@example.com" });
+    // Explicitly set loading to true before subscribing
+    setLoading(true);
+    const unsubscribe = loadEvents();
+    setEventsUnsubscribe(() => unsubscribe);
+    setLoading(false);
   };
 
   const toggleOperation = (opName) => {
@@ -145,10 +183,12 @@ export default function MultiOpsCalendar() {
   
   // Check if current user can edit/delete an event
   const canEditEvent = (event) => {
-    if (!currentUser) return false;
+    if (!currentUser || viewOnlyMode) return false;
     
-    // Admin can edit all events
-    if (currentUser.email === "admin@example.com") {
+    // Admin and special users can edit all events
+    if (currentUser.email === "admin@example.com" || 
+        currentUser.email === "headofoperation@gmail.com" || 
+        currentUser.email === "academicheadmhc@gmail.com") {
       return true;
     }
     
@@ -201,14 +241,15 @@ export default function MultiOpsCalendar() {
 
   // Add new event
   const openModal = (date) => { 
-    if (!currentUser) {
-      alert("Please log in to add events.");
+    if (!currentUser || viewOnlyMode) {
       return;
     }
     
     // Check if user has permission to add events to any operation
     const userOperations = operationsList.filter(op => 
-      currentUser.email === "admin@example.com" ? true : op.user === currentUser.email
+      currentUser.email === "admin@example.com" || 
+      currentUser.email === "headofoperation@gmail.com" || 
+      currentUser.email === "academicheadmhc@gmail.com" ? true : op.user === currentUser.email
     );
     
     if (userOperations.length === 0) {
@@ -228,7 +269,9 @@ export default function MultiOpsCalendar() {
     // Check if user has permission to add events to the selected operation
     const selectedOperation = operationsList.find(op => op.name === newEventOp);
     
-    if (currentUser.email !== "admin@example.com") {
+    if (currentUser.email !== "admin@example.com" && 
+        currentUser.email !== "headofoperation@gmail.com" && 
+        currentUser.email !== "academicheadmhc@gmail.com") {
       if (!selectedOperation || selectedOperation.user !== currentUser.email) {
         alert("You don't have permission to add events to this operation");
         return;
@@ -252,8 +295,10 @@ export default function MultiOpsCalendar() {
 
   // Get operations available for the current user to add events to
   const getUserOperations = () => {
-    if (!currentUser) return [];
-    if (currentUser.email === "admin@example.com") {
+    if (!currentUser || viewOnlyMode) return [];
+    if (currentUser.email === "admin@example.com" || 
+        currentUser.email === "headofoperation@gmail.com" || 
+        currentUser.email === "academicheadmhc@gmail.com") {
       return operationsList;
     }
     return operationsList.filter(op => op.user === currentUser.email);
@@ -261,7 +306,7 @@ export default function MultiOpsCalendar() {
 
   // Check if user can add events
   const userCanAddEvents = () => {
-    return currentUser && getUserOperations().length > 0;
+    return currentUser && getUserOperations().length > 0 && !viewOnlyMode;
   };
 
   // Get events for the selected date
@@ -272,7 +317,7 @@ export default function MultiOpsCalendar() {
   };
 
   // Show login screen if not authenticated
-if (!currentUser) {
+if (!currentUser && !viewOnlyMode) {
   return (
     <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#f8fafc,#e0f2fe,#e8eaf6)',fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'}}>
       <div style={{background:'rgba(255,255,255,0.9)',backdropFilter:'blur(10px)',borderRadius:'16px',boxShadow:'0 25px 50px rgba(0,0,0,0.1)',border:'1px solid rgba(255,255,255,0.2)',padding:'40px',width:'100%',maxWidth:'400px'}}>
@@ -334,9 +379,17 @@ if (!currentUser) {
           
           <button 
             type="submit" 
-            style={{width:'100%',padding:'14px 16px',borderRadius:'10px',background:'#3B82F6',color:'white',border:'none', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'}}
+            style={{width:'100%',padding:'14px 16px',borderRadius:'10px',background:'#3B82F6',color:'white',border:'none', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)', marginBottom: '16px'}}
           >
             Login
+          </button>
+          
+          <button 
+            type="button" 
+            onClick={enterViewOnlyMode}
+            style={{width:'100%',padding:'14px 16px',borderRadius:'10px',background:'#10B981',color:'white',border:'none', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'}}
+          >
+            View Calendar Only
           </button>
         </form>
       </div>
@@ -355,10 +408,12 @@ if (!currentUser) {
           </div>
           
           <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
-            <div style={{fontSize:'16px',color:'#6b7280'}}>Welcome, <span style={{fontWeight:'bold',color:'#1f2937'}}>{currentUser.email}</span></div>
-            <button onClick={handleLogout} style={{padding:'8px 16px',borderRadius:'8px',border:'1px solid #d1d5db', background: 'white', cursor: 'pointer'}}>
-              Logout
-            </button>
+            <div style={{fontSize:'16px',color:'#6b7280'}}>
+              {viewOnlyMode ? "Viewing as Guest" : `Welcome, ${currentUser.email}`}
+            </div>
+		<button onClick={viewOnlyMode ? exitViewMode : handleLogout} style={{padding:'8px 16px',borderRadius:'8px',border:'1px solid #d1d5db', background: 'white', cursor: 'pointer'}}>
+  			{viewOnlyMode ? "Exit View Mode" : "Logout"}
+</button>
           </div>
         </div>
 
@@ -379,11 +434,14 @@ if (!currentUser) {
                 <button key={op.name} onClick={()=>toggleOperation(op.name)} style={{
                   padding:'10px 20px',borderRadius:'25px',border:selectedOps.includes(op.name)?'none':`2px solid ${op.color}`,
                   background:selectedOps.includes(op.name)?op.bgColor:'white',color:selectedOps.includes(op.name)?'white':op.color,fontSize:'14px',fontWeight:'500',cursor:'pointer',transition:'all 0.3s',
-                  opacity: (currentUser.email === "admin@example.com" || op.user === currentUser.email) ? 1 : 0.6,
+                  opacity: (currentUser.email === "admin@example.com" || 
+                           currentUser.email === "headofoperation@gmail.com" || 
+                           currentUser.email === "academicheadmhc@gmail.com" || 
+                           op.user === currentUser.email || viewOnlyMode) ? 1 : 0.6,
                   position: 'relative'
                 }}>
                   {op.name}
-                  {op.user === currentUser.email && (
+                  {!viewOnlyMode && op.user === currentUser.email && (
                     <span style={{
                       position: 'absolute',
                       top: '-5px',
@@ -447,7 +505,9 @@ if (!currentUser) {
                         >
                           <span style={{overflow:'hidden',textOverflow:'ellipsis',paddingRight:'8px', flex: 1}}>{ev.title}</span>
                           {canEdit && <span style={{fontSize:'10px',opacity:0.8, flexShrink: 0}}>🗑️</span>}
-                          {!canEdit && currentUser.email === "admin@example.com" && (
+                          {!canEdit && (currentUser.email === "admin@example.com" || 
+                                       currentUser.email === "headofoperation@gmail.com" || 
+                                       currentUser.email === "academicheadmhc@gmail.com") && (
                             <span style={{fontSize:'10px',opacity:0.8, flexShrink: 0}}>👁️</span>
                           )}
                         </div>
@@ -468,8 +528,8 @@ if (!currentUser) {
             <div style={{width:'4px',height:'16px',background:'#d1d5db',borderRadius:'2px'}}/>
             <div style={{fontSize:'14px',color:'#6b7280'}}><span style={{fontWeight:'bold',color:'#1f2937'}}>{selectedOps.length}</span> Active Operations</div>
             <div style={{width:'4px',height:'16px',background:'#d1d5db',borderRadius:'2px'}}/>
-            <div style={{fontSize:'14px',color:'#6b7280'}}>User: <span style={{fontWeight:'bold',color:'#1f2937'}}>
-              {currentUser.email}
+            <div style={{fontSize:'14px',color:'#6b7280'}}>Mode: <span style={{fontWeight:'bold',color:'#1f2937'}}>
+              {viewOnlyMode ? "View Only" : "Edit Mode"}
             </span></div>
           </div>
         </div>
